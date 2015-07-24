@@ -59,6 +59,60 @@ class Syncronize {
     }
 
     /**
+     * Получение биннарных файлов прикрепленных к объекту
+     *
+     * @param $id string ID объекта
+     * @param $object string название объекта
+     * @return string возвращает файл закодированный base64
+     */
+    public function files($id, $object){
+        $result = array();
+        $files = $this->request('GET', $object.'FileCollection/?$filter='.$object.'/Id%20eq%20guid%27'.$id.'%27')->results;
+        foreach ($files as $file) {
+            $ch = curl_init($file->Data->__mediaresource->edit_media);
+            $options = array(
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_CUSTOMREQUEST  => 'GET',
+                CURLOPT_RETURNTRANSFER => TRUE,
+                CURLOPT_HTTPHEADER     => array(
+                    'MaxDataServiceVersion: 3.0',
+                    'Content-Type: application/json;odata=verbose',
+                    'DataServiceVersion: 1.0',
+                    'Authorization: Basic '.base64_encode($this->account))
+            );
+            curl_setopt_array($ch, $options);
+            $result[] = curl_exec($ch);
+            curl_close($ch);
+        }
+        return $result;
+    }
+
+    /**
+     * Загрузка изображения в BPM Online OData
+     *
+     * @param $guid string guid изображения которому загружать бинарные данные
+     * @param $file string бинарные данные файла
+     * @return string
+     */
+    public function upload($link, $guid, $file) {
+        if ($link == 'SysImage') $link = $this->link.urlencode($link."Collection(guid'$guid')").'/PreviewData';
+        else $link = $this->link.urlencode($link."Collection(guid'$guid')").'/Data';
+        $ch = curl_init($link);
+        $options = array(
+            CURLOPT_CUSTOMREQUEST  => 'PUT',
+            CURLOPT_RETURNTRANSFER => TRUE,
+            CURLOPT_POSTFIELDS     => $file,
+            CURLOPT_HTTPHEADER     => array(
+                'Content-Type: multipart/form-data;boundary=+++++',
+                'Authorization: Basic '.base64_encode($this->account))
+        );
+        curl_setopt_array($ch, $options);
+        $result = curl_exec($ch);
+        curl_close($ch);
+        return $result;
+    }
+
+    /**
      * Метод для получения коллекции объектов определенного типа, с возможностью задать фильтр
      *
      * @param string $object название объектов которые необходимо получить
